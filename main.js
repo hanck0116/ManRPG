@@ -1,7 +1,8 @@
-import { PHASES } from './data.js';
+import { IMAGINATION_STEPS, PHASES } from './data.js';
 import {
   getSerializableState,
   goToNextFloor,
+  proceedImaginationStep,
   setupFloor,
   startBattle,
   startGame,
@@ -12,6 +13,7 @@ const elements = {
   phase: document.getElementById('phase'),
   floor: document.getElementById('floor'),
   turn: document.getElementById('turn'),
+  imaginationStep: document.getElementById('imagination-step'),
   playerName: document.getElementById('player-name'),
   playerLevel: document.getElementById('player-level'),
   playerHp: document.getElementById('player-hp'),
@@ -79,7 +81,34 @@ function renderActions(state) {
   }
 
   if (state.session.phase === PHASES.IMAGINATION_WORLD) {
-    elements.actionButtons.appendChild(button('다음 층으로', goToNextFloor));
+    const step = state.world.imaginationStep;
+
+    if (step === IMAGINATION_STEPS.ENTER) {
+      elements.actionButtons.appendChild(button('다음', proceedImaginationStep));
+      return;
+    }
+
+    if (step === IMAGINATION_STEPS.REWARD) {
+      elements.actionButtons.appendChild(button('보상 받기', proceedImaginationStep));
+      return;
+    }
+
+    if (
+      step === IMAGINATION_STEPS.STAT_DISTRIBUTION ||
+      step === IMAGINATION_STEPS.SKILL_CREATE ||
+      step === IMAGINATION_STEPS.SPELLBOOK_ACTION ||
+      step === IMAGINATION_STEPS.SHOP
+    ) {
+      elements.actionButtons.appendChild(button('다음', proceedImaginationStep));
+      return;
+    }
+
+    if (step === IMAGINATION_STEPS.READY_FOR_NEXT_FLOOR) {
+      elements.actionButtons.appendChild(button('다음 층으로', goToNextFloor));
+      return;
+    }
+
+    elements.actionButtons.appendChild(button('진행 불가', () => {}, 'secondary', true));
   }
 }
 
@@ -104,6 +133,7 @@ function render() {
   elements.phase.textContent = state.session.phase;
   elements.floor.textContent = String(state.session.floor);
   elements.turn.textContent = String(state.battle.turn);
+  elements.imaginationStep.textContent = state.world.imaginationStep;
 
   if (player) {
     elements.playerName.textContent = player.name;

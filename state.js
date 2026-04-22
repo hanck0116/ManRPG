@@ -1,9 +1,9 @@
-import { PHASES } from './data.js';
+import { IMAGINATION_STEPS, PHASES } from './data.js';
 
 // gameState를 영역별로 분리해 각 책임을 명확히 한다.
 // - session: 게임 전체 진행 메타(페이즈/층/시작 여부)
 // - battle: 전투 턴/행동/전투 결과
-// - world: 층 클리어/심상세계/보상 처리
+// - world: 층 클리어/심상세계/보상 처리 상태
 // - entities: 실제 전투 참여 데이터(플레이어/적)
 // - ui: 렌더링 보조 상태
 // - logs: 디버깅/플레이 로그
@@ -34,10 +34,10 @@ export const gameState = {
     floorCleared: false,
     // imaginationEntered: 심상세계 진입 시 true, 새 층 준비에서 false
     imaginationEntered: false,
-    // rewardsGranted: 심상세계 보상 지급 시 true, 새 층 준비에서 false
+    // rewardsGranted: REWARD 단계에서 보상 지급 시 true, 새 층 준비에서 false
     rewardsGranted: false,
-    // imaginationStep: 심상세계 진입 단계 표기(현재 NONE/ENTERED 사용)
-    imaginationStep: 'NONE',
+    // imaginationStep: 심상세계 진행 단계 (ENTER→...→READY_FOR_NEXT_FLOOR)
+    imaginationStep: IMAGINATION_STEPS.NONE,
   },
   entities: {
     player: null,
@@ -66,5 +66,5 @@ export function resetWorldState() {
   gameState.world.floorCleared = false;
   gameState.world.imaginationEntered = false;
   gameState.world.rewardsGranted = false;
-  gameState.world.imaginationStep = 'NONE';
+  gameState.world.imaginationStep = IMAGINATION_STEPS.NONE;
 }

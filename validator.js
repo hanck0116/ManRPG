@@ -1,4 +1,4 @@
-import { PHASES } from './data.js';
+import { IMAGINATION_STEPS, PHASES } from './data.js';
 
 function fail(logFn, message) {
   logFn(`[ERROR] ${message}`, true);
@@ -68,6 +68,38 @@ export function validateRewardNotDuplicated(state, logFn) {
 export function validateImaginationEntry(state, logFn) {
   if (state.session.phase !== PHASES.FLOOR_CLEAR) {
     return fail(logFn, '층 클리어 전에 심상세계 진입 시도');
+  }
+
+  return true;
+}
+
+export function validateImaginationProgressAllowed(state, logFn) {
+  if (state.session.phase !== PHASES.IMAGINATION_WORLD) {
+    return fail(logFn, '심상세계가 아닌데 단계 진행 시도');
+  }
+
+  if (!state.world.imaginationEntered) {
+    return fail(logFn, '심상세계 미진입 상태에서 단계 진행 시도');
+  }
+
+  return true;
+}
+
+export function validateRewardStepAllowed(state, logFn) {
+  if (state.world.imaginationStep !== IMAGINATION_STEPS.REWARD) {
+    return fail(logFn, 'REWARD 단계가 아닌데 보상 처리 시도');
+  }
+
+  return true;
+}
+
+export function validateNextFloorAllowed(state, logFn) {
+  if (state.session.phase !== PHASES.IMAGINATION_WORLD) {
+    return fail(logFn, '심상세계가 아닌데 다음 층 이동 시도');
+  }
+
+  if (state.world.imaginationStep !== IMAGINATION_STEPS.READY_FOR_NEXT_FLOOR) {
+    return fail(logFn, '다음 층 준비 단계 이전에 이동 시도');
   }
 
   return true;
