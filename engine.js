@@ -1,5 +1,5 @@
 import { createEnemyForFloor, createSamplePlayer, PHASES, REWARDS } from './data.js';
-import { gameState, resetTurnFlags } from './state.js';
+import { gameState, resetBattleState, resetTurnFlags, resetWorldState } from './state.js';
 import {
   validateAttackAllowed,
   validateBattleStartAllowed,
@@ -12,6 +12,7 @@ function clone(value) {
 }
 
 export function pushLog(message, isError = false) {
+  gameState.ui.lastMessage = message;
   gameState.logs.unshift({ message, isError });
   gameState.logs = gameState.logs.slice(0, 40);
 }
@@ -22,45 +23,43 @@ function rollDice(max) {
 }
 
 export function startGame() {
-  // 역할: 플레이어 및 기본 게임 상태 초기화 담당
-  gameState.player = createSamplePlayer();
-  gameState.enemy = null;
-  gameState.phase = PHASES.INIT;
-  gameState.turn = 0;
-  gameState.floor = 1;
-  gameState.rewardsGranted = false;
-  gameState.imaginationEntered = false;
-  resetTurnFlags();
+  // 역할: 플레이어 및 세션 초기화
+  gameState.entities.player = createSamplePlayer();
+  gameState.entities.enemy = null;
+
+  gameState.session.started = true;
+  gameState.session.phase = PHASES.INIT;
+  gameState.session.floor = 1;
+
+  resetBattleState();
+  resetWorldState();
 
   pushLog('[INIT] 샘플 플레이어 로드 완료');
 }
 
 export function setupFloor() {
-  // 역할: 현재 floor 기준 적 생성 + 층 준비 페이즈 전환 담당
-  gameState.enemy = createEnemyForFloor(gameState.floor);
-  gameState.phase = PHASES.FLOOR_SETUP;
-  gameState.rewardsGranted = false;
-  gameState.imaginationEntered = false;
-  gameState.turn = 0;
-  resetTurnFlags();
+  // 역할: 현재 층의 월드/전투 준비 상태 구성
+  gameState.entities.enemy = createEnemyForFloor(gameState.session.floor);
+  gameState.session.phase = PHASES.FLOOR_SETUP;
 
-  pushLog(`[FLOOR] ${gameState.floor}층 적 생성: ${gameState.enemy.name}`);
-  pushLog(`[FLOOR] ${gameState.floor}층 준비 완료`);
+  resetBattleState();
+  resetWorldState();
+
+  pushLog(`[FLOOR] ${gameState.session.floor}층 적 생성: ${gameState.entities.enemy.name}`);
+  pushLog(`[FLOOR] ${gameState.session.floor}층 준비 완료`);
 }
 
 function beginTurn() {
-  gameState.turn += 1;
+  gameState.battle.turn += 1;
   resetTurnFlags();
 
-  // 확장 포인트: 이후 턴 시작 버프/디버프 훅 추가 가능
-  const beforeMp = gameState.player.mp;
-  gameState.player.mp = Math.min(
-    gameState.player.maxMp,
-    gameState.player.mp + gameState.player.mpRecovery,
-  );
-  const recovered = gameState.player.mp - beforeMp;
-  gameState.turnMeta.mpRecoveredThisTurn = true;
-  pushLog(`[TURN] ${gameState.turn}턴 시작, MP +${recovered}`);
+  const player = gameState.entities.player;
+  const beforeMp = player.mp;
+  player.mp = Math.min(player.maxMp, player.mp + player.mpRecovery);
+  const recovered = player.mp - beforeMp;
+
+  gameState.battle.turnMeta.mpRecoveredThisTurn = true;
+  pushLog(`[TURN] ${gameState.battle.turn}턴 시작, MP +${recovered}`);
 }
 
 export function startBattle() {
@@ -68,40 +67,49 @@ export function startBattle() {
     return;
   }
 
-  gameState.phase = PHASES.BATTLE;
+  gameState.session.phase = PHASES.BATTLE;
   pushLog('[BATTLE] 전투 시작');
   beginTurn();
 }
 
 function enemyReactOnce() {
-  if (!gameState.enemy || !gameState.enemy.isAlive) {
+  const player = gameState.entities.player;
+  const enemy = gameState.entities.enemy;
+
+  if (!enemy || !enemy.isAlive) {
     return;
   }
 
-  const enemyRoll = rollDice(gameState.enemy.stats.strength);
+  const enemyRoll = rollDice(enemy.stats.strength);
   const damage = enemyRoll;
-  const beforeHp = gameState.player.hp;
-  gameState.player.hp = Math.max(0, gameState.player.hp - damage);
+  const beforeHp = player.hp;
+  player.hp = Math.max(0, player.hp - damage);
 
-  pushLog(`[ENEMY] ${gameState.enemy.name} 반응 공격`);
-  pushLog(`[ROLL] 적 반응 d${gameState.enemy.stats.strength} → ${enemyRoll}`);
-  pushLog(`[RESULT] ${gameState.player.name} HP ${beforeHp} → ${gameState.player.hp}`);
+  pushLog(`[ENEMY] ${enemy.name} 반응 공격`);
+  pushLog(`[ROLL] 적 반응 d${enemy.stats.strength} → ${enemyRoll}`);
+  pushLog(`[RESULT] ${player.name} HP ${beforeHp} → ${player.hp}`);
 
-  if (gameState.player.hp <= 0) {
-    // 확장 포인트: 패배/리스폰 시스템 연결 가능
+  if (player.hp <= 0) {
+    gameState.battle.result.playerDefeated = true;
     pushLog('[ERROR] 플레이어가 쓰러져 행동 불가 상태', true);
   }
 }
 
 function checkFloorClear() {
-  if (!gameState.enemy || gameState.enemy.hp > 0) {
+  const enemy = gameState.entities.enemy;
+
+  if (!enemy || enemy.hp > 0) {
     return;
   }
 
-  gameState.enemy.hp = 0;
-  gameState.enemy.isAlive = false;
-  gameState.phase = PHASES.FLOOR_CLEAR;
-  pushLog(`[CLEAR] ${gameState.floor}층 클리어`);
+  enemy.hp = 0;
+  enemy.isAlive = false;
+
+  gameState.battle.result.enemyDefeated = true;
+  gameState.world.floorCleared = true;
+  gameState.session.phase = PHASES.FLOOR_CLEAR;
+
+  pushLog(`[CLEAR] ${gameState.session.floor}층 클리어`);
   pushLog('[CLEAR] 심상세계 자동 진입 처리');
   enterImaginationWorld();
 }
@@ -111,17 +119,20 @@ export function useBasicAttack() {
     return;
   }
 
-  const roll = rollDice(gameState.player.stats.strength);
+  const player = gameState.entities.player;
+  const enemy = gameState.entities.enemy;
+
+  const roll = rollDice(player.stats.strength);
   const damage = roll;
-  const beforeHp = gameState.enemy.hp;
+  const beforeHp = enemy.hp;
 
-  gameState.enemy.hp = Math.max(0, gameState.enemy.hp - damage);
-  gameState.actionUsed = true;
+  enemy.hp = Math.max(0, enemy.hp - damage);
+  gameState.battle.actionUsed = true;
 
-  pushLog(`[ROLL] 기본 공격 d${gameState.player.stats.strength} → ${roll}`);
-  pushLog(`[RESULT] ${gameState.enemy.name} HP ${beforeHp} → ${gameState.enemy.hp}`);
+  pushLog(`[ROLL] 기본 공격 d${player.stats.strength} → ${roll}`);
+  pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
 
-  if (gameState.enemy.hp <= 0) {
+  if (enemy.hp <= 0) {
     checkFloorClear();
     return;
   }
@@ -135,34 +146,36 @@ export function enterImaginationWorld() {
     return;
   }
 
-  gameState.phase = PHASES.IMAGINATION_WORLD;
-  gameState.imaginationEntered = true;
+  const player = gameState.entities.player;
 
-  // 심상세계 진입 시 회복 + 일시 상태이상 제거
-  gameState.player.hp = gameState.player.maxHp;
-  gameState.player.mp = gameState.player.maxMp;
-  gameState.player.statusEffects = [];
+  gameState.session.phase = PHASES.IMAGINATION_WORLD;
+  gameState.world.imaginationEntered = true;
+  gameState.world.imaginationStep = 'ENTERED';
+
+  player.hp = player.maxHp;
+  player.mp = player.maxMp;
+  player.statusEffects = [];
 
   if (validateRewardNotDuplicated(gameState, pushLog)) {
-    gameState.player.level += REWARDS.LEVEL;
-    gameState.player.statPoints += REWARDS.STAT_POINTS;
-    gameState.player.coins += REWARDS.COINS;
-    gameState.rewardsGranted = true;
+    player.level += REWARDS.LEVEL;
+    player.statPoints += REWARDS.STAT_POINTS;
+    player.coins += REWARDS.COINS;
+    gameState.world.rewardsGranted = true;
   }
 
   pushLog('[IMAGINATION] 회복 및 보상 지급 완료');
 }
 
 export function goToNextFloor() {
-  if (gameState.phase !== PHASES.IMAGINATION_WORLD) {
+  if (gameState.session.phase !== PHASES.IMAGINATION_WORLD) {
     pushLog('[ERROR] 심상세계가 아닌데 다음 층 이동 시도', true);
     return;
   }
 
-  gameState.floor += 1;
-  gameState.enemy = null;
+  gameState.session.floor += 1;
+  gameState.entities.enemy = null;
 
-  pushLog(`[FLOOR] ${gameState.floor}층 준비`);
+  pushLog(`[FLOOR] ${gameState.session.floor}층 준비`);
   setupFloor();
 }
 

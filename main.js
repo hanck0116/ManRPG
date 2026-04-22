@@ -45,7 +45,7 @@ function button(label, onClick, className = '', disabled = false) {
 function renderActions(state) {
   elements.actionButtons.innerHTML = '';
 
-  if (state.phase === PHASES.INIT) {
+  if (state.session.phase === PHASES.INIT) {
     elements.actionButtons.appendChild(
       button('게임 시작', () => {
         startGame();
@@ -55,8 +55,8 @@ function renderActions(state) {
     return;
   }
 
-  if (state.phase === PHASES.FLOOR_SETUP) {
-    if (state.enemy && state.enemy.isAlive) {
+  if (state.session.phase === PHASES.FLOOR_SETUP) {
+    if (state.entities.enemy && state.entities.enemy.isAlive) {
       elements.actionButtons.appendChild(button('전투 시작', startBattle));
     } else {
       elements.actionButtons.appendChild(
@@ -66,12 +66,12 @@ function renderActions(state) {
     return;
   }
 
-  if (state.phase === PHASES.BATTLE) {
+  if (state.session.phase === PHASES.BATTLE) {
     elements.actionButtons.appendChild(button('기본 공격', useBasicAttack));
     return;
   }
 
-  if (state.phase === PHASES.IMAGINATION_WORLD) {
+  if (state.session.phase === PHASES.IMAGINATION_WORLD) {
     elements.actionButtons.appendChild(button('다음 층으로', goToNextFloor));
   }
 }
@@ -91,24 +91,26 @@ function renderLogs(state) {
 
 function render() {
   const state = getSerializableState();
+  const player = state.entities.player;
+  const enemy = state.entities.enemy;
 
-  elements.phase.textContent = state.phase;
-  elements.floor.textContent = String(state.floor);
-  elements.turn.textContent = String(state.turn);
+  elements.phase.textContent = state.session.phase;
+  elements.floor.textContent = String(state.session.floor);
+  elements.turn.textContent = String(state.battle.turn);
 
-  if (state.player) {
-    elements.playerName.textContent = state.player.name;
-    elements.playerLevel.textContent = String(state.player.level);
-    elements.playerHp.textContent = `${state.player.hp} / ${state.player.maxHp}`;
-    elements.playerMp.textContent = `${state.player.mp} / ${state.player.maxMp}`;
-    elements.playerStats.textContent = `${state.player.stats.strength} / ${state.player.stats.agility} / ${state.player.stats.wisdom}`;
-    elements.playerStatPoints.textContent = String(state.player.statPoints);
-    elements.playerCoins.textContent = String(state.player.coins);
+  if (player) {
+    elements.playerName.textContent = player.name;
+    elements.playerLevel.textContent = String(player.level);
+    elements.playerHp.textContent = `${player.hp} / ${player.maxHp}`;
+    elements.playerMp.textContent = `${player.mp} / ${player.maxMp}`;
+    elements.playerStats.textContent = `${player.stats.strength} / ${player.stats.agility} / ${player.stats.wisdom}`;
+    elements.playerStatPoints.textContent = String(player.statPoints);
+    elements.playerCoins.textContent = String(player.coins);
   }
 
-  if (state.enemy) {
-    elements.enemyName.textContent = state.enemy.name;
-    elements.enemyHp.textContent = `${state.enemy.hp} / ${state.enemy.maxHp}`;
+  if (enemy) {
+    elements.enemyName.textContent = enemy.name;
+    elements.enemyHp.textContent = `${enemy.hp} / ${enemy.maxHp}`;
   } else {
     elements.enemyName.textContent = '없음';
     elements.enemyHp.textContent = '-';
