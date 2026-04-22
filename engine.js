@@ -5,6 +5,7 @@ import {
   PHASES,
   REWARDS,
   SKILL_POOL,
+  SPELLBOOK_POOL,
 } from './data.js';
 import { gameState, resetBattleState, resetTurnFlags, resetWorldState } from './state.js';
 import {
@@ -17,6 +18,9 @@ import {
   validateRewardStepAllowed,
   validateSkillCreatePreparationAllowed,
   validateSkillSelectionAllowed,
+  validateSpellbookPreparationAllowed,
+  validateSpellbookSelectionAllowed,
+  validateSpellbookSkipAllowed,
   validateStatAllocationAllowed,
   validateStatDistributionFinishAllowed,
 } from './validator.js';
@@ -36,13 +40,13 @@ function rollDice(max) {
   return Math.floor(Math.random() * safeMax) + 1;
 }
 
-function pickUniqueSkills(count) {
-  const pool = [...SKILL_POOL];
+function pickUniqueFromPool(pool, count) {
+  const source = [...pool];
   const picks = [];
 
-  while (pool.length > 0 && picks.length < count) {
-    const index = Math.floor(Math.random() * pool.length);
-    picks.push(pool.splice(index, 1)[0]);
+  while (source.length > 0 && picks.length < count) {
+    const index = Math.floor(Math.random() * source.length);
+    picks.push(source.splice(index, 1)[0]);
   }
 
   return picks;
@@ -87,9 +91,7 @@ function beginTurn() {
 }
 
 export function startBattle() {
-  if (!validateBattleStartAllowed(gameState, pushLog)) {
-    return;
-  }
+  if (!validateBattleStartAllowed(gameState, pushLog)) return;
 
   gameState.session.phase = PHASES.BATTLE;
   pushLog('[BATTLE] 전투 시작');
@@ -99,15 +101,11 @@ export function startBattle() {
 function enemyReactOnce() {
   const player = gameState.entities.player;
   const enemy = gameState.entities.enemy;
-
-  if (!enemy || !enemy.isAlive) {
-    return;
-  }
+  if (!enemy || !enemy.isAlive) return;
 
   const enemyRoll = rollDice(enemy.stats.strength);
-  const damage = enemyRoll;
   const beforeHp = player.hp;
-  player.hp = Math.max(0, player.hp - damage);
+  player.hp = Math.max(0, player.hp - enemyRoll);
 
   pushLog(`[ENEMY] ${enemy.name} 반응 공격`);
   pushLog(`[ROLL] 적 반응 d${enemy.stats.strength} → ${enemyRoll}`);
@@ -121,14 +119,10 @@ function enemyReactOnce() {
 
 function checkFloorClear() {
   const enemy = gameState.entities.enemy;
-
-  if (!enemy || enemy.hp > 0) {
-    return false;
-  }
+  if (!enemy || enemy.hp > 0) return false;
 
   enemy.hp = 0;
   enemy.isAlive = false;
-
   gameState.battle.result.enemyDefeated = true;
   gameState.world.floorCleared = true;
   gameState.session.phase = PHASES.FLOOR_CLEAR;
@@ -136,34 +130,27 @@ function checkFloorClear() {
   pushLog(`[CLEAR] ${gameState.session.floor}층 클리어`);
   pushLog('[CLEAR] 심상세계 자동 진입 처리');
   enterImaginationWorld();
-
   return true;
 }
 
 export function useBasicAttack() {
-  if (!validateAttackAllowed(gameState, pushLog)) {
-    return;
-  }
+  if (!validateAttackAllowed(gameState, pushLog)) return;
 
   const player = gameState.entities.player;
   const enemy = gameState.entities.enemy;
 
   const roll = rollDice(player.stats.strength);
-  const damage = roll;
   const beforeHp = enemy.hp;
 
-  enemy.hp = Math.max(0, enemy.hp - damage);
+  enemy.hp = Math.max(0, enemy.hp - roll);
   gameState.battle.actionUsed = true;
 
   pushLog(`[ROLL] 기본 공격 d${player.stats.strength} → ${roll}`);
   pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
 
-  if (checkFloorClear()) {
-    return;
-  }
+  if (checkFloorClear()) return;
 
   enemyReactOnce();
-
   if (gameState.battle.result.playerDefeated) {
     pushLog('[TURN] 플레이어 사망으로 턴 종료, 다음 턴 시작 안 함');
     return;
@@ -173,12 +160,9 @@ export function useBasicAttack() {
 }
 
 export function enterImaginationWorld() {
-  if (!validateImaginationEntry(gameState, pushLog)) {
-    return;
-  }
+  if (!validateImaginationEntry(gameState, pushLog)) return;
 
   const player = gameState.entities.player;
-
   gameState.session.phase = PHASES.IMAGINATION_WORLD;
   gameState.world.imaginationEntered = true;
   gameState.world.imaginationStep = IMAGINATION_STEPS.ENTER;
@@ -191,9 +175,7 @@ export function enterImaginationWorld() {
 }
 
 function processImaginationReward() {
-  if (!validateRewardStepAllowed(gameState, pushLog)) {
-    return;
-  }
+  if (!validateRewardStepAllowed(gameState, pushLog)) return;
 
   if (validateRewardNotDuplicated(gameState, pushLog)) {
     const player = gameState.entities.player;
@@ -201,7 +183,6 @@ function processImaginationReward() {
     player.statPoints += REWARDS.STAT_POINTS;
     player.coins += REWARDS.COINS;
     gameState.world.rewardsGranted = true;
-
     pushLog('[IMAGINATION] 보상 지급: 레벨 +5 / 스탯포인트 +15 / 코인 +1');
     pushLog('[IMAGINATION] 보상 지급 완료');
   }
@@ -211,27 +192,18 @@ function processImaginationReward() {
 }
 
 export function allocateStat(statKey) {
-  if (!validateStatAllocationAllowed(gameState, statKey, pushLog)) {
-    return;
-  }
+  if (!validateStatAllocationAllowed(gameState, statKey, pushLog)) return;
 
   const player = gameState.entities.player;
   player.stats[statKey] += 1;
   player.statPoints -= 1;
 
-  const statLabel = {
-    strength: '힘',
-    agility: '민첩',
-    wisdom: '지혜',
-  }[statKey];
-
-  pushLog(`[STAT] ${statLabel} +1 (남은 포인트: ${player.statPoints})`);
+  const label = { strength: '힘', agility: '민첩', wisdom: '지혜' }[statKey];
+  pushLog(`[STAT] ${label} +1 (남은 포인트: ${player.statPoints})`);
 }
 
 export function finishStatDistribution() {
-  if (!validateStatDistributionFinishAllowed(gameState, pushLog)) {
-    return;
-  }
+  if (!validateStatDistributionFinishAllowed(gameState, pushLog)) return;
 
   const remaining = gameState.entities.player.statPoints;
   if (remaining > 0) {
@@ -244,43 +216,62 @@ export function finishStatDistribution() {
 }
 
 export function prepareSkillChoices() {
-  if (!validateSkillCreatePreparationAllowed(gameState, pushLog)) {
-    return;
-  }
+  if (!validateSkillCreatePreparationAllowed(gameState, pushLog)) return;
+  if (gameState.world.skillChoices.length > 0) return;
 
-  if (gameState.world.skillChoices.length > 0) {
-    return;
-  }
-
-  gameState.world.skillChoices = pickUniqueSkills(3);
+  gameState.world.skillChoices = pickUniqueFromPool(SKILL_POOL, 3);
   pushLog('[IMAGINATION] 스킬 생성 단계 진입');
   pushLog('[IMAGINATION] 스킬 후보 3개 준비 완료');
 }
 
 export function selectSkill(skillId) {
-  if (!validateSkillSelectionAllowed(gameState, skillId, pushLog)) {
-    return;
-  }
+  if (!validateSkillSelectionAllowed(gameState, skillId, pushLog)) return;
 
   const selected = gameState.world.skillChoices.find((skill) => skill.id === skillId);
-  const player = gameState.entities.player;
-  player.skills.push(selected);
-
+  gameState.entities.player.skills.push(selected);
   gameState.world.skillChoices = [];
   gameState.world.imaginationStep = IMAGINATION_STEPS.SPELLBOOK_ACTION;
 
   pushLog(`[SKILL] ${selected.name} 획득`);
   pushLog('[IMAGINATION] 스킬 선택 완료, 마법서 단계로 이동');
+  prepareSpellbookChoices();
+}
+
+export function prepareSpellbookChoices() {
+  if (!validateSpellbookPreparationAllowed(gameState, pushLog)) return;
+  if (gameState.world.spellbookChoices.length > 0) return;
+
+  gameState.world.spellbookChoices = pickUniqueFromPool(SPELLBOOK_POOL, 2);
+  pushLog('[IMAGINATION] 마법서 단계 진입');
+  pushLog('[IMAGINATION] 마법서 후보 2개 준비 완료');
+}
+
+export function selectSpellbook(spellbookId) {
+  if (!validateSpellbookSelectionAllowed(gameState, spellbookId, pushLog)) return;
+
+  const selected = gameState.world.spellbookChoices.find((book) => book.id === spellbookId);
+  gameState.entities.player.spellbooks.push(selected);
+  gameState.world.spellbookChoices = [];
+  gameState.world.imaginationStep = IMAGINATION_STEPS.SHOP;
+
+  pushLog(`[SPELLBOOK] ${selected.name} 획득`);
+  pushLog('[IMAGINATION] 마법서 선택 완료, 상점 단계로 이동');
+}
+
+export function skipSpellbookSelection() {
+  if (!validateSpellbookSkipAllowed(gameState, pushLog)) return;
+
+  gameState.world.spellbookChoices = [];
+  gameState.world.imaginationStep = IMAGINATION_STEPS.SHOP;
+
+  pushLog('[IMAGINATION] 마법서 선택 건너뜀');
+  pushLog('[IMAGINATION] 상점 단계로 이동');
 }
 
 export function proceedImaginationStep() {
-  if (!validateImaginationProgressAllowed(gameState, pushLog)) {
-    return;
-  }
+  if (!validateImaginationProgressAllowed(gameState, pushLog)) return;
 
-  const step = gameState.world.imaginationStep;
-
-  switch (step) {
+  switch (gameState.world.imaginationStep) {
     case IMAGINATION_STEPS.ENTER:
       gameState.world.imaginationStep = IMAGINATION_STEPS.REWARD;
       pushLog('[IMAGINATION] 보상 단계 진입');
@@ -299,8 +290,7 @@ export function proceedImaginationStep() {
       return;
 
     case IMAGINATION_STEPS.SPELLBOOK_ACTION:
-      pushLog('[IMAGINATION] 마법서 단계 (임시)');
-      gameState.world.imaginationStep = IMAGINATION_STEPS.SHOP;
+      prepareSpellbookChoices();
       return;
 
     case IMAGINATION_STEPS.SHOP:
@@ -319,13 +309,10 @@ export function proceedImaginationStep() {
 }
 
 export function goToNextFloor() {
-  if (!validateNextFloorAllowed(gameState, pushLog)) {
-    return;
-  }
+  if (!validateNextFloorAllowed(gameState, pushLog)) return;
 
   gameState.session.floor += 1;
   gameState.entities.enemy = null;
-
   pushLog(`[FLOOR] ${gameState.session.floor}층 준비`);
   setupFloor();
 }
