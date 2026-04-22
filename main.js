@@ -5,6 +5,7 @@ import {
   getSerializableState,
   goToNextFloor,
   proceedImaginationStep,
+  selectSkill,
   setupFloor,
   startBattle,
   startGame,
@@ -23,18 +24,22 @@ const elements = {
   playerStats: document.getElementById('player-stats'),
   playerStatPoints: document.getElementById('player-stat-points'),
   playerCoins: document.getElementById('player-coins'),
+  playerSkills: document.getElementById('player-skills'),
   enemyName: document.getElementById('enemy-name'),
   enemyHp: document.getElementById('enemy-hp'),
   logList: document.getElementById('log-list'),
   actionButtons: document.getElementById('action-buttons'),
 };
 
-function button(label, onClick, className = '', disabled = false) {
+function button(label, onClick, className = '', disabled = false, title = '') {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = `action-btn ${className}`.trim();
   btn.textContent = label;
   btn.disabled = disabled;
+  if (title) {
+    btn.title = title;
+  }
 
   if (!disabled) {
     btn.addEventListener('click', () => {
@@ -110,8 +115,23 @@ function renderActions(state) {
       return;
     }
 
+    if (step === IMAGINATION_STEPS.SKILL_CREATE) {
+      const choices = state.world.skillChoices || [];
+
+      if (choices.length === 0) {
+        elements.actionButtons.appendChild(button('후보 준비', proceedImaginationStep));
+        return;
+      }
+
+      choices.forEach((skill) => {
+        elements.actionButtons.appendChild(
+          button(skill.name, () => selectSkill(skill.id), '', false, skill.description),
+        );
+      });
+      return;
+    }
+
     if (
-      step === IMAGINATION_STEPS.SKILL_CREATE ||
       step === IMAGINATION_STEPS.SPELLBOOK_ACTION ||
       step === IMAGINATION_STEPS.SHOP
     ) {
@@ -159,6 +179,8 @@ function render() {
     elements.playerStats.textContent = `${player.stats.strength} / ${player.stats.agility} / ${player.stats.wisdom}`;
     elements.playerStatPoints.textContent = String(player.statPoints);
     elements.playerCoins.textContent = String(player.coins);
+    elements.playerSkills.textContent =
+      player.skills.length > 0 ? player.skills.map((skill) => skill.name).join(', ') : '없음';
   }
 
   if (enemy) {

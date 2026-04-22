@@ -23,6 +23,44 @@ export const REWARDS = {
   COINS: 1,
 };
 
+export const SKILL_POOL = [
+  {
+    id: 'skill_power_strike',
+    name: '강타',
+    description: '강한 일격을 가하는 기본 공격형 스킬',
+  },
+  {
+    id: 'skill_double_slash',
+    name: '연속 베기',
+    description: '빠른 연속 공격으로 압박하는 스킬',
+  },
+  {
+    id: 'skill_focus',
+    name: '집중',
+    description: '집중하여 다음 행동의 효율을 높이는 스킬',
+  },
+  {
+    id: 'skill_mana_wave',
+    name: '마력 파동',
+    description: '마력을 전방으로 방출하는 지혜형 스킬',
+  },
+  {
+    id: 'skill_quick_thrust',
+    name: '재빠른 찌르기',
+    description: '민첩하게 빈틈을 찌르는 스킬',
+  },
+  {
+    id: 'skill_balance_sense',
+    name: '균형 감각',
+    description: '전투 균형을 유지해 안정성을 높이는 스킬',
+  },
+  {
+    id: 'skill_arcane_mark',
+    name: '비전 각인',
+    description: '적에게 각인을 새겨 전투 흐름을 유리하게 하는 스킬',
+  },
+];
+
 export function createSamplePlayer() {
   return {
     name: '하린',
@@ -39,6 +77,7 @@ export function createSamplePlayer() {
     },
     statPoints: 0,
     coins: 0,
+    skills: [],
     statusEffects: [],
   };
 }

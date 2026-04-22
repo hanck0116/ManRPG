@@ -140,3 +140,40 @@ export function validateStatDistributionFinishAllowed(state, logFn) {
 
   return true;
 }
+
+export function validateSkillCreatePreparationAllowed(state, logFn) {
+  if (!validateImaginationProgressAllowed(state, logFn)) {
+    return false;
+  }
+
+  if (state.world.imaginationStep !== IMAGINATION_STEPS.SKILL_CREATE) {
+    return fail(logFn, '스킬 생성 단계가 아닌데 후보 준비 시도');
+  }
+
+  return true;
+}
+
+export function validateSkillSelectionAllowed(state, skillId, logFn) {
+  if (!validateImaginationProgressAllowed(state, logFn)) {
+    return false;
+  }
+
+  if (state.world.imaginationStep !== IMAGINATION_STEPS.SKILL_CREATE) {
+    return fail(logFn, '스킬 생성 단계가 아닌데 스킬 선택 시도');
+  }
+
+  if (!state.entities.player) {
+    return fail(logFn, '플레이어 정보 없이 스킬 선택 시도');
+  }
+
+  if (!Array.isArray(state.world.skillChoices) || state.world.skillChoices.length === 0) {
+    return fail(logFn, '스킬 후보가 없는 상태에서 선택 시도');
+  }
+
+  const exists = state.world.skillChoices.some((skill) => skill.id === skillId);
+  if (!exists) {
+    return fail(logFn, '후보에 없는 스킬 선택 시도');
+  }
+
+  return true;
+}

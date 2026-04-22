@@ -7,8 +7,6 @@ import { IMAGINATION_STEPS, PHASES } from './data.js';
 // - entities: 실제 전투 참여 데이터(플레이어/적)
 // - ui: 렌더링 보조 상태
 // - logs: 디버깅/플레이 로그
-// 확장 포인트: 저장 시스템, 자유 입력 파서, 심상세계 단계 확장 시
-// 각 영역을 독립적으로 확장하기 쉽도록 구조화했다.
 export const gameState = {
   session: {
     phase: PHASES.INIT,
@@ -23,9 +21,7 @@ export const gameState = {
       mpRecoveredThisTurn: false,
     },
     result: {
-      // playerDefeated: 적 반응 등으로 플레이어가 쓰러지면 true
       playerDefeated: false,
-      // enemyDefeated: 적 처치가 확정되면 true
       enemyDefeated: false,
     },
   },
@@ -36,8 +32,10 @@ export const gameState = {
     imaginationEntered: false,
     // rewardsGranted: REWARD 단계에서 보상 지급 시 true, 새 층 준비에서 false
     rewardsGranted: false,
-    // imaginationStep: 심상세계 진행 단계 (ENTER→...→READY_FOR_NEXT_FLOOR)
+    // imaginationStep: 심상세계 진행 단계
     imaginationStep: IMAGINATION_STEPS.NONE,
+    // skillChoices: SKILL_CREATE 단계에서 표시할 후보 3개
+    skillChoices: [],
   },
   entities: {
     player: null,
@@ -67,4 +65,5 @@ export function resetWorldState() {
   gameState.world.imaginationEntered = false;
   gameState.world.rewardsGranted = false;
   gameState.world.imaginationStep = IMAGINATION_STEPS.NONE;
+  gameState.world.skillChoices = [];
 }

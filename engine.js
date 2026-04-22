@@ -1,4 +1,11 @@
-import { createEnemyForFloor, createSamplePlayer, IMAGINATION_STEPS, PHASES, REWARDS } from './data.js';
+import {
+  createEnemyForFloor,
+  createSamplePlayer,
+  IMAGINATION_STEPS,
+  PHASES,
+  REWARDS,
+  SKILL_POOL,
+} from './data.js';
 import { gameState, resetBattleState, resetTurnFlags, resetWorldState } from './state.js';
 import {
   validateAttackAllowed,
@@ -8,6 +15,8 @@ import {
   validateNextFloorAllowed,
   validateRewardNotDuplicated,
   validateRewardStepAllowed,
+  validateSkillCreatePreparationAllowed,
+  validateSkillSelectionAllowed,
   validateStatAllocationAllowed,
   validateStatDistributionFinishAllowed,
 } from './validator.js';
@@ -25,6 +34,18 @@ export function pushLog(message, isError = false) {
 function rollDice(max) {
   const safeMax = Math.max(1, Math.floor(max));
   return Math.floor(Math.random() * safeMax) + 1;
+}
+
+function pickUniqueSkills(count) {
+  const pool = [...SKILL_POOL];
+  const picks = [];
+
+  while (pool.length > 0 && picks.length < count) {
+    const index = Math.floor(Math.random() * pool.length);
+    picks.push(pool.splice(index, 1)[0]);
+  }
+
+  return picks;
 }
 
 export function startGame() {
@@ -219,6 +240,37 @@ export function finishStatDistribution() {
 
   gameState.world.imaginationStep = IMAGINATION_STEPS.SKILL_CREATE;
   pushLog('[IMAGINATION] 스탯 분배 완료');
+  prepareSkillChoices();
+}
+
+export function prepareSkillChoices() {
+  if (!validateSkillCreatePreparationAllowed(gameState, pushLog)) {
+    return;
+  }
+
+  if (gameState.world.skillChoices.length > 0) {
+    return;
+  }
+
+  gameState.world.skillChoices = pickUniqueSkills(3);
+  pushLog('[IMAGINATION] 스킬 생성 단계 진입');
+  pushLog('[IMAGINATION] 스킬 후보 3개 준비 완료');
+}
+
+export function selectSkill(skillId) {
+  if (!validateSkillSelectionAllowed(gameState, skillId, pushLog)) {
+    return;
+  }
+
+  const selected = gameState.world.skillChoices.find((skill) => skill.id === skillId);
+  const player = gameState.entities.player;
+  player.skills.push(selected);
+
+  gameState.world.skillChoices = [];
+  gameState.world.imaginationStep = IMAGINATION_STEPS.SPELLBOOK_ACTION;
+
+  pushLog(`[SKILL] ${selected.name} 획득`);
+  pushLog('[IMAGINATION] 스킬 선택 완료, 마법서 단계로 이동');
 }
 
 export function proceedImaginationStep() {
@@ -243,8 +295,7 @@ export function proceedImaginationStep() {
       return;
 
     case IMAGINATION_STEPS.SKILL_CREATE:
-      pushLog('[IMAGINATION] 스킬 생성 단계 (임시)');
-      gameState.world.imaginationStep = IMAGINATION_STEPS.SPELLBOOK_ACTION;
+      prepareSkillChoices();
       return;
 
     case IMAGINATION_STEPS.SPELLBOOK_ACTION:
