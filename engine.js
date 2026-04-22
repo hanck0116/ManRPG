@@ -2,6 +2,7 @@ import { createEnemyForFloor, createSamplePlayer, PHASES, REWARDS } from './data
 import { gameState, resetTurnFlags } from './state.js';
 import {
   validateAttackAllowed,
+  validateBattleStartAllowed,
   validateImaginationEntry,
   validateRewardNotDuplicated,
 } from './validator.js';
@@ -21,23 +22,30 @@ function rollDice(max) {
 }
 
 export function startGame() {
+  // 역할: 플레이어 및 기본 게임 상태 초기화 담당
   gameState.player = createSamplePlayer();
   gameState.enemy = null;
-  gameState.phase = PHASES.FLOOR_SETUP;
+  gameState.phase = PHASES.INIT;
   gameState.turn = 0;
   gameState.floor = 1;
   gameState.rewardsGranted = false;
   gameState.imaginationEntered = false;
   resetTurnFlags();
+
   pushLog('[INIT] 샘플 플레이어 로드 완료');
 }
 
 export function setupFloor() {
+  // 역할: 현재 floor 기준 적 생성 + 층 준비 페이즈 전환 담당
   gameState.enemy = createEnemyForFloor(gameState.floor);
   gameState.phase = PHASES.FLOOR_SETUP;
   gameState.rewardsGranted = false;
   gameState.imaginationEntered = false;
+  gameState.turn = 0;
+  resetTurnFlags();
+
   pushLog(`[FLOOR] ${gameState.floor}층 적 생성: ${gameState.enemy.name}`);
+  pushLog(`[FLOOR] ${gameState.floor}층 준비 완료`);
 }
 
 function beginTurn() {
@@ -56,8 +64,7 @@ function beginTurn() {
 }
 
 export function startBattle() {
-  if (!gameState.enemy) {
-    pushLog('[ERROR] 적이 없어 전투를 시작할 수 없음', true);
+  if (!validateBattleStartAllowed(gameState, pushLog)) {
     return;
   }
 
@@ -82,7 +89,7 @@ function enemyReactOnce() {
 
   if (gameState.player.hp <= 0) {
     // 확장 포인트: 패배/리스폰 시스템 연결 가능
-    pushLog('[ERROR] 플레이어가 쓰러짐 (프로토타입에서는 진행 가능)', true);
+    pushLog('[ERROR] 플레이어가 쓰러져 행동 불가 상태', true);
   }
 }
 
@@ -95,6 +102,7 @@ function checkFloorClear() {
   gameState.enemy.isAlive = false;
   gameState.phase = PHASES.FLOOR_CLEAR;
   pushLog(`[CLEAR] ${gameState.floor}층 클리어`);
+  pushLog('[CLEAR] 심상세계 자동 진입 처리');
   enterImaginationWorld();
 }
 
@@ -152,12 +160,7 @@ export function goToNextFloor() {
   }
 
   gameState.floor += 1;
-  gameState.turn = 0;
   gameState.enemy = null;
-  gameState.phase = PHASES.FLOOR_SETUP;
-  gameState.imaginationEntered = false;
-  gameState.rewardsGranted = false;
-  resetTurnFlags();
 
   pushLog(`[FLOOR] ${gameState.floor}층 준비`);
   setupFloor();

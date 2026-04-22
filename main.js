@@ -25,15 +25,20 @@ const elements = {
   actionButtons: document.getElementById('action-buttons'),
 };
 
-function button(label, onClick, className = '') {
+function button(label, onClick, className = '', disabled = false) {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = `action-btn ${className}`.trim();
   btn.textContent = label;
-  btn.addEventListener('click', () => {
-    onClick();
-    render();
-  });
+  btn.disabled = disabled;
+
+  if (!disabled) {
+    btn.addEventListener('click', () => {
+      onClick();
+      render();
+    });
+  }
+
   return btn;
 }
 
@@ -51,17 +56,18 @@ function renderActions(state) {
   }
 
   if (state.phase === PHASES.FLOOR_SETUP) {
-    elements.actionButtons.appendChild(button('전투 시작', startBattle));
+    if (state.enemy && state.enemy.isAlive) {
+      elements.actionButtons.appendChild(button('전투 시작', startBattle));
+    } else {
+      elements.actionButtons.appendChild(
+        button('적 생성 대기중', () => {}, 'secondary', true),
+      );
+    }
     return;
   }
 
   if (state.phase === PHASES.BATTLE) {
     elements.actionButtons.appendChild(button('기본 공격', useBasicAttack));
-    return;
-  }
-
-  if (state.phase === PHASES.FLOOR_CLEAR) {
-    elements.actionButtons.appendChild(button('심상세계 진입', () => {}, 'secondary'));
     return;
   }
 
