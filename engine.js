@@ -38,7 +38,10 @@ export function startGame() {
 }
 
 export function setupFloor() {
-  // 역할: 현재 층의 월드/전투 준비 상태 구성
+  // 역할: "새 층 시작"만 담당한다.
+  // - 새 적 생성
+  // - session.phase를 FLOOR_SETUP으로 전환
+  // - 새 층 기준 battle/world 플래그 초기화
   gameState.entities.enemy = createEnemyForFloor(gameState.session.floor);
   gameState.session.phase = PHASES.FLOOR_SETUP;
 
@@ -99,7 +102,7 @@ function checkFloorClear() {
   const enemy = gameState.entities.enemy;
 
   if (!enemy || enemy.hp > 0) {
-    return;
+    return false;
   }
 
   enemy.hp = 0;
@@ -112,6 +115,8 @@ function checkFloorClear() {
   pushLog(`[CLEAR] ${gameState.session.floor}층 클리어`);
   pushLog('[CLEAR] 심상세계 자동 진입 처리');
   enterImaginationWorld();
+
+  return true;
 }
 
 export function useBasicAttack() {
@@ -132,12 +137,17 @@ export function useBasicAttack() {
   pushLog(`[ROLL] 기본 공격 d${player.stats.strength} → ${roll}`);
   pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
 
-  if (enemy.hp <= 0) {
-    checkFloorClear();
+  if (checkFloorClear()) {
     return;
   }
 
   enemyReactOnce();
+
+  if (gameState.battle.result.playerDefeated) {
+    pushLog('[TURN] 플레이어 사망으로 턴 종료, 다음 턴 시작 안 함');
+    return;
+  }
+
   beginTurn();
 }
 

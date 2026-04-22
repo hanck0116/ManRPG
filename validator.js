@@ -14,8 +14,12 @@ export function validateAttackAllowed(state, logFn) {
     return fail(logFn, '플레이어 정보가 없는데 공격 시도');
   }
 
-  if (state.entities.player.hp <= 0) {
+  if (state.battle.result.playerDefeated) {
     return fail(logFn, '플레이어 사망 상태로 공격 시도');
+  }
+
+  if (state.entities.player.hp <= 0) {
+    return fail(logFn, '플레이어 HP 0 상태로 공격 시도');
   }
 
   if (!state.battle.turnMeta.mpRecoveredThisTurn) {
@@ -26,7 +30,7 @@ export function validateAttackAllowed(state, logFn) {
     return fail(logFn, '적이 없는데 전투가 진행됨');
   }
 
-  if (!state.entities.enemy.isAlive || state.entities.enemy.hp <= 0) {
+  if (state.battle.result.enemyDefeated || !state.entities.enemy.isAlive || state.entities.enemy.hp <= 0) {
     return fail(logFn, '이미 죽은 적에게 다시 공격 시도');
   }
 
@@ -46,7 +50,7 @@ export function validateBattleStartAllowed(state, logFn) {
     return fail(logFn, '적이 없는 상태에서 전투 시작 시도');
   }
 
-  if (!state.entities.enemy.isAlive || state.entities.enemy.hp <= 0) {
+  if (state.battle.result.enemyDefeated || !state.entities.enemy.isAlive || state.entities.enemy.hp <= 0) {
     return fail(logFn, '이미 전투 불가한 적으로 전투 시작 시도');
   }
 

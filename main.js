@@ -45,7 +45,8 @@ function button(label, onClick, className = '', disabled = false) {
 function renderActions(state) {
   elements.actionButtons.innerHTML = '';
 
-  if (state.session.phase === PHASES.INIT) {
+  // started를 실제로 활용: 아직 시작 전(INIT + started=false)에서만 시작 버튼 노출
+  if (state.session.phase === PHASES.INIT && !state.session.started) {
     elements.actionButtons.appendChild(
       button('게임 시작', () => {
         startGame();
@@ -67,7 +68,13 @@ function renderActions(state) {
   }
 
   if (state.session.phase === PHASES.BATTLE) {
-    elements.actionButtons.appendChild(button('기본 공격', useBasicAttack));
+    if (state.battle.result.playerDefeated) {
+      elements.actionButtons.appendChild(
+        button('행동 불가', () => {}, 'secondary', true),
+      );
+    } else {
+      elements.actionButtons.appendChild(button('기본 공격', useBasicAttack));
+    }
     return;
   }
 

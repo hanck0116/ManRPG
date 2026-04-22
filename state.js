@@ -23,14 +23,20 @@ export const gameState = {
       mpRecoveredThisTurn: false,
     },
     result: {
+      // playerDefeated: 적 반응 등으로 플레이어가 쓰러지면 true
       playerDefeated: false,
+      // enemyDefeated: 적 처치가 확정되면 true
       enemyDefeated: false,
     },
   },
   world: {
+    // floorCleared: 적 처치 시 true, 새 층 준비(setupFloor)에서 false
     floorCleared: false,
+    // imaginationEntered: 심상세계 진입 시 true, 새 층 준비에서 false
     imaginationEntered: false,
+    // rewardsGranted: 심상세계 보상 지급 시 true, 새 층 준비에서 false
     rewardsGranted: false,
+    // imaginationStep: 심상세계 진입 단계 표기(현재 NONE/ENTERED 사용)
     imaginationStep: 'NONE',
   },
   entities: {
