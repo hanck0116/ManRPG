@@ -1,5 +1,7 @@
 import { IMAGINATION_STEPS, PHASES } from './data.js';
 import {
+  allocateStat,
+  finishStatDistribution,
   getSerializableState,
   goToNextFloor,
   proceedImaginationStep,
@@ -47,7 +49,6 @@ function button(label, onClick, className = '', disabled = false) {
 function renderActions(state) {
   elements.actionButtons.innerHTML = '';
 
-  // started를 실제로 활용: 아직 시작 전(INIT + started=false)에서만 시작 버튼 노출
   if (state.session.phase === PHASES.INIT && !state.session.started) {
     elements.actionButtons.appendChild(
       button('게임 시작', () => {
@@ -93,8 +94,23 @@ function renderActions(state) {
       return;
     }
 
+    if (step === IMAGINATION_STEPS.STAT_DISTRIBUTION) {
+      const canAllocate = state.entities.player && state.entities.player.statPoints > 0;
+
+      elements.actionButtons.appendChild(
+        button('힘 +1', () => allocateStat('strength'), '', !canAllocate),
+      );
+      elements.actionButtons.appendChild(
+        button('민첩 +1', () => allocateStat('agility'), '', !canAllocate),
+      );
+      elements.actionButtons.appendChild(
+        button('지혜 +1', () => allocateStat('wisdom'), '', !canAllocate),
+      );
+      elements.actionButtons.appendChild(button('분배 완료', finishStatDistribution, 'secondary'));
+      return;
+    }
+
     if (
-      step === IMAGINATION_STEPS.STAT_DISTRIBUTION ||
       step === IMAGINATION_STEPS.SKILL_CREATE ||
       step === IMAGINATION_STEPS.SPELLBOOK_ACTION ||
       step === IMAGINATION_STEPS.SHOP

@@ -104,3 +104,39 @@ export function validateNextFloorAllowed(state, logFn) {
 
   return true;
 }
+
+export function validateStatAllocationAllowed(state, statKey, logFn) {
+  if (!validateImaginationProgressAllowed(state, logFn)) {
+    return false;
+  }
+
+  if (state.world.imaginationStep !== IMAGINATION_STEPS.STAT_DISTRIBUTION) {
+    return fail(logFn, '스탯 분배 단계가 아닌데 분배 시도');
+  }
+
+  if (!state.entities.player) {
+    return fail(logFn, '플레이어 정보 없이 스탯 분배 시도');
+  }
+
+  if (state.entities.player.statPoints <= 0) {
+    return fail(logFn, '포인트가 없는데 스탯 분배 시도');
+  }
+
+  if (!['strength', 'agility', 'wisdom'].includes(statKey)) {
+    return fail(logFn, '유효하지 않은 스탯 키 분배 시도');
+  }
+
+  return true;
+}
+
+export function validateStatDistributionFinishAllowed(state, logFn) {
+  if (!validateImaginationProgressAllowed(state, logFn)) {
+    return false;
+  }
+
+  if (state.world.imaginationStep !== IMAGINATION_STEPS.STAT_DISTRIBUTION) {
+    return fail(logFn, '스탯 분배 단계가 아닌데 분배 완료 시도');
+  }
+
+  return true;
+}

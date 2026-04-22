@@ -8,6 +8,8 @@ import {
   validateNextFloorAllowed,
   validateRewardNotDuplicated,
   validateRewardStepAllowed,
+  validateStatAllocationAllowed,
+  validateStatDistributionFinishAllowed,
 } from './validator.js';
 
 function clone(value) {
@@ -26,7 +28,6 @@ function rollDice(max) {
 }
 
 export function startGame() {
-  // 역할: 플레이어 및 세션 초기화
   gameState.entities.player = createSamplePlayer();
   gameState.entities.enemy = null;
 
@@ -41,10 +42,6 @@ export function startGame() {
 }
 
 export function setupFloor() {
-  // 역할: "새 층 시작"만 담당한다.
-  // - 새 적 생성
-  // - session.phase를 FLOOR_SETUP으로 전환
-  // - 새 층 기준 battle/world 플래그 초기화
   gameState.entities.enemy = createEnemyForFloor(gameState.session.floor);
   gameState.session.phase = PHASES.FLOOR_SETUP;
 
@@ -165,7 +162,6 @@ export function enterImaginationWorld() {
   gameState.world.imaginationEntered = true;
   gameState.world.imaginationStep = IMAGINATION_STEPS.ENTER;
 
-  // 진입 시점에는 회복만 처리하고, 보상은 REWARD 단계에서 처리한다.
   player.hp = player.maxHp;
   player.mp = player.maxMp;
   player.statusEffects = [];
@@ -190,6 +186,39 @@ function processImaginationReward() {
   }
 
   gameState.world.imaginationStep = IMAGINATION_STEPS.STAT_DISTRIBUTION;
+  pushLog('[IMAGINATION] 스탯 분배 단계 진입');
+}
+
+export function allocateStat(statKey) {
+  if (!validateStatAllocationAllowed(gameState, statKey, pushLog)) {
+    return;
+  }
+
+  const player = gameState.entities.player;
+  player.stats[statKey] += 1;
+  player.statPoints -= 1;
+
+  const statLabel = {
+    strength: '힘',
+    agility: '민첩',
+    wisdom: '지혜',
+  }[statKey];
+
+  pushLog(`[STAT] ${statLabel} +1 (남은 포인트: ${player.statPoints})`);
+}
+
+export function finishStatDistribution() {
+  if (!validateStatDistributionFinishAllowed(gameState, pushLog)) {
+    return;
+  }
+
+  const remaining = gameState.entities.player.statPoints;
+  if (remaining > 0) {
+    pushLog(`[IMAGINATION] 남은 포인트 ${remaining} 상태로 분배 종료`);
+  }
+
+  gameState.world.imaginationStep = IMAGINATION_STEPS.SKILL_CREATE;
+  pushLog('[IMAGINATION] 스탯 분배 완료');
 }
 
 export function proceedImaginationStep() {
@@ -199,48 +228,43 @@ export function proceedImaginationStep() {
 
   const step = gameState.world.imaginationStep;
 
-  if (step === IMAGINATION_STEPS.ENTER) {
-    gameState.world.imaginationStep = IMAGINATION_STEPS.REWARD;
-    pushLog('[IMAGINATION] 보상 단계 진입');
-    return;
-  }
+  switch (step) {
+    case IMAGINATION_STEPS.ENTER:
+      gameState.world.imaginationStep = IMAGINATION_STEPS.REWARD;
+      pushLog('[IMAGINATION] 보상 단계 진입');
+      return;
 
-  if (step === IMAGINATION_STEPS.REWARD) {
-    processImaginationReward();
-    return;
-  }
+    case IMAGINATION_STEPS.REWARD:
+      processImaginationReward();
+      return;
 
-  if (step === IMAGINATION_STEPS.STAT_DISTRIBUTION) {
-    pushLog('[IMAGINATION] 스탯 분배 단계 (임시)');
-    gameState.world.imaginationStep = IMAGINATION_STEPS.SKILL_CREATE;
-    return;
-  }
+    case IMAGINATION_STEPS.STAT_DISTRIBUTION:
+      pushLog('[IMAGINATION] 스탯 분배 단계에서 직접 분배 또는 완료를 선택');
+      return;
 
-  if (step === IMAGINATION_STEPS.SKILL_CREATE) {
-    pushLog('[IMAGINATION] 스킬 생성 단계 (임시)');
-    gameState.world.imaginationStep = IMAGINATION_STEPS.SPELLBOOK_ACTION;
-    return;
-  }
+    case IMAGINATION_STEPS.SKILL_CREATE:
+      pushLog('[IMAGINATION] 스킬 생성 단계 (임시)');
+      gameState.world.imaginationStep = IMAGINATION_STEPS.SPELLBOOK_ACTION;
+      return;
 
-  if (step === IMAGINATION_STEPS.SPELLBOOK_ACTION) {
-    pushLog('[IMAGINATION] 마법서 단계 (임시)');
-    gameState.world.imaginationStep = IMAGINATION_STEPS.SHOP;
-    return;
-  }
+    case IMAGINATION_STEPS.SPELLBOOK_ACTION:
+      pushLog('[IMAGINATION] 마법서 단계 (임시)');
+      gameState.world.imaginationStep = IMAGINATION_STEPS.SHOP;
+      return;
 
-  if (step === IMAGINATION_STEPS.SHOP) {
-    pushLog('[IMAGINATION] 상점 단계 (임시)');
-    gameState.world.imaginationStep = IMAGINATION_STEPS.READY_FOR_NEXT_FLOOR;
-    pushLog('[IMAGINATION] 다음 층 이동 가능');
-    return;
-  }
+    case IMAGINATION_STEPS.SHOP:
+      pushLog('[IMAGINATION] 상점 단계 (임시)');
+      gameState.world.imaginationStep = IMAGINATION_STEPS.READY_FOR_NEXT_FLOOR;
+      pushLog('[IMAGINATION] 다음 층 이동 가능');
+      return;
 
-  if (step === IMAGINATION_STEPS.READY_FOR_NEXT_FLOOR) {
-    pushLog('[IMAGINATION] 이미 다음 층 이동 가능 상태');
-    return;
-  }
+    case IMAGINATION_STEPS.READY_FOR_NEXT_FLOOR:
+      pushLog('[IMAGINATION] 이미 다음 층 이동 가능 상태');
+      return;
 
-  pushLog('[ERROR] 알 수 없는 심상세계 단계', true);
+    default:
+      pushLog('[ERROR] 알 수 없는 심상세계 단계', true);
+  }
 }
 
 export function goToNextFloor() {
