@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>ManRPG Mobile Prototype v1</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app" aria-live="polite">
+      <header class="panel">
+        <h1>ManRPG Prototype</h1>
+        <p class="subtitle">모바일 우선 턴제 RPG 규칙 엔진 (1차)</p>
+      </header>
+
+      <section class="panel status-panel" id="status-panel">
+        <h2>상태</h2>
+        <div class="status-grid">
+          <div><strong>페이즈</strong><span id="phase">-</span></div>
+          <div><strong>층</strong><span id="floor">-</span></div>
+          <div><strong>턴</strong><span id="turn">-</span></div>
+        </div>
+      </section>
+
+      <section class="panel player-panel" id="player-panel">
+        <h2>플레이어</h2>
+        <div class="stat-line">이름: <span id="player-name">-</span></div>
+        <div class="stat-line">레벨: <span id="player-level">-</span></div>
+        <div class="stat-line">HP: <span id="player-hp">-</span></div>
+        <div class="stat-line">MP: <span id="player-mp">-</span></div>
+        <div class="stat-line">STR / AGI / WIS: <span id="player-stats">-</span></div>
+        <div class="stat-line">스탯 포인트: <span id="player-stat-points">-</span></div>
+        <div class="stat-line">코인: <span id="player-coins">-</span></div>
+      </section>
+
+      <section class="panel enemy-panel" id="enemy-panel">
+        <h2>적</h2>
+        <div class="stat-line">이름: <span id="enemy-name">없음</span></div>
+        <div class="stat-line">HP: <span id="enemy-hp">-</span></div>
+      </section>
+
+      <section class="panel action-panel" id="action-panel">
+        <h2>행동</h2>
+        <div class="button-grid" id="action-buttons"></div>
+      </section>
+
+      <section class="panel log-panel" id="log-panel">
+        <h2>로그</h2>
+        <ul id="log-list" class="log-list"></ul>
+      </section>
+    </main>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
