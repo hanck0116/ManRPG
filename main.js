@@ -17,6 +17,7 @@ import {
   startBattle,
   startGame,
   useBasicAttack,
+  useDefend,
 } from './engine.js';
 
 const elements = {
@@ -93,11 +94,13 @@ function renderActions(state) {
   }
 
   if (state.session.phase === PHASES.BATTLE) {
-    elements.actionButtons.appendChild(
-      state.battle.result.playerDefeated
-        ? button('행동 불가', () => {}, 'secondary', true)
-        : button('기본 공격', useBasicAttack),
-    );
+    if (state.battle.result.playerDefeated) {
+      elements.actionButtons.appendChild(button('행동 불가', () => {}, 'secondary', true));
+      return;
+    }
+
+    elements.actionButtons.appendChild(button('기본 공격', useBasicAttack));
+    elements.actionButtons.appendChild(button('방어', useDefend, 'secondary'));
     return;
   }
 

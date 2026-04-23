@@ -12,6 +12,7 @@ import { gameState, resetBattleState, resetTurnFlags, resetWorldState } from './
 import {
   validateAttackAllowed,
   validateBattleStartAllowed,
+  validateDefendAllowed,
   validateImaginationEntry,
   validateImaginationProgressAllowed,
   validateNextFloorAllowed,
@@ -85,6 +86,8 @@ export function loadGame() {
 
     Object.assign(gameState.session, loaded.session);
     Object.assign(gameState.battle, loaded.battle);
+    gameState.battle.turnMeta = Object.assign({ mpRecoveredThisTurn: false }, gameState.battle.turnMeta || {});
+    gameState.battle.defending = Boolean(gameState.battle.defending);
     Object.assign(gameState.world, loaded.world);
     gameState.entities.player = loaded.entities.player;
     gameState.entities.enemy = loaded.entities.enemy;
@@ -147,10 +150,13 @@ function enemyReactOnce() {
 
   const enemyRoll = rollDice(enemy.stats.strength);
   const beforeHp = player.hp;
-  player.hp = Math.max(0, player.hp - enemyRoll);
+  const isDefending = gameState.battle.defending;
+  const damage = isDefending ? Math.floor(enemyRoll / 2) : enemyRoll;
+  player.hp = Math.max(0, player.hp - damage);
 
   pushLog(`[ENEMY] ${enemy.name} 반응 공격`);
   pushLog(`[ROLL] 적 반응 d${enemy.stats.strength} → ${enemyRoll}`);
+  if (isDefending) pushLog(`[DEFEND] 방어 성공, 피해 ${enemyRoll} → ${damage}`);
   pushLog(`[RESULT] ${player.name} HP ${beforeHp} → ${player.hp}`);
 
   if (player.hp <= 0) {
@@ -158,6 +164,7 @@ function enemyReactOnce() {
     pushLog('[ERROR] 플레이어가 쓰러져 행동 불가 상태', true);
   }
 }
+
 
 function checkFloorClear() {
   const enemy = gameState.entities.enemy;
@@ -190,6 +197,22 @@ export function useBasicAttack() {
   pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
 
   if (checkFloorClear()) return;
+
+  enemyReactOnce();
+  if (gameState.battle.result.playerDefeated) {
+    pushLog('[TURN] 플레이어 사망으로 턴 종료, 다음 턴 시작 안 함');
+    return;
+  }
+  beginTurn();
+}
+
+
+export function useDefend() {
+  if (!validateDefendAllowed(gameState, pushLog)) return;
+
+  gameState.battle.actionUsed = true;
+  gameState.battle.defending = true;
+  pushLog('[BATTLE] 방어 태세');
 
   enemyReactOnce();
   if (gameState.battle.result.playerDefeated) {

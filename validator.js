@@ -19,6 +19,20 @@ export function validateAttackAllowed(state, logFn) {
   return true;
 }
 
+export function validateDefendAllowed(state, logFn) {
+  if (state.session.phase !== PHASES.BATTLE) return fail(logFn, 'BATTLE 페이즈가 아닌데 방어 실행 시도');
+  if (!state.entities.player) return fail(logFn, '플레이어 정보가 없는데 방어 시도');
+  if (state.battle.result.playerDefeated) return fail(logFn, '플레이어 사망 상태로 방어 시도');
+  if (state.entities.player.hp <= 0) return fail(logFn, '플레이어 HP 0 상태로 방어 시도');
+  if (!state.battle.turnMeta.mpRecoveredThisTurn) return fail(logFn, '턴 시작 MP 회복이 누락된 상태에서 방어 시도');
+  if (!state.entities.enemy) return fail(logFn, '적이 없는데 방어 시도');
+  if (state.battle.result.enemyDefeated || !state.entities.enemy.isAlive || state.entities.enemy.hp <= 0) {
+    return fail(logFn, '이미 죽은 적을 상대로 방어 시도');
+  }
+  if (state.battle.actionUsed) return fail(logFn, '이미 행동을 사용한 턴에 방어 재시도');
+  return true;
+}
+
 export function validateBattleStartAllowed(state, logFn) {
   if (state.session.phase !== PHASES.FLOOR_SETUP) return fail(logFn, 'FLOOR_SETUP이 아닌데 전투 시작 시도');
   if (!state.entities.enemy) return fail(logFn, '적이 없는 상태에서 전투 시작 시도');
