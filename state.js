@@ -11,6 +11,7 @@ export const gameState = {
     actionUsed: false,
     bonusAttackUsed: false,
     defending: false,
+    lastActionType: null,
     turnMeta: {
       mpRecoveredThisTurn: false,
     },
@@ -51,6 +52,7 @@ export function resetBattleState() {
   resetTurnFlags();
   gameState.battle.result.playerDefeated = false;
   gameState.battle.result.enemyDefeated = false;
+  gameState.battle.lastActionType = null;
 }
 
 export function resetWorldState() {

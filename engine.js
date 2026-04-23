@@ -91,6 +91,7 @@ export function loadGame() {
     Object.assign(gameState.battle, loadedBattle);
     gameState.battle.turnMeta = Object.assign({ mpRecoveredThisTurn: false }, loadedBattle.turnMeta || {});
     gameState.battle.defending = Boolean(loadedBattle.defending);
+    gameState.battle.lastActionType = loadedBattle.lastActionType || null;
     Object.assign(gameState.world, loaded.world);
     gameState.entities.player = loaded.entities.player;
     gameState.entities.enemy = loaded.entities.enemy;
@@ -190,6 +191,7 @@ function checkFloorClear() {
 
 
 function applyBasicAttack() {
+  pushLog('[ACTION] 기본 공격');
   const player = gameState.entities.player;
   const enemy = gameState.entities.enemy;
   const roll = rollDice(player.stats.strength);
@@ -197,15 +199,19 @@ function applyBasicAttack() {
 
   enemy.hp = Math.max(0, enemy.hp - roll);
   gameState.battle.actionUsed = true;
+  gameState.battle.lastActionType = 'basic_attack';
 
   pushLog(`[ROLL] 기본 공격 d${player.stats.strength} → ${roll}`);
   pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
+  return true;
 }
 
 function applyDefend() {
   gameState.battle.actionUsed = true;
   gameState.battle.defending = true;
+  gameState.battle.lastActionType = 'defend';
   pushLog('[ACTION] 방어 태세 돌입');
+  return true;
 }
 
 
@@ -223,6 +229,7 @@ function applySkillAction(skill) {
   pushLog(`[SKILL] ${skill.name} 사용`);
 
   const mpCost = Math.max(0, Number(skill.mpCost || 0));
+  gameState.battle.lastActionType = 'skill';
   const beforeMp = player.mp;
   player.mp = Math.max(0, player.mp - mpCost);
   pushLog(`[SKILL] MP ${beforeMp} → ${player.mp}`);
@@ -268,6 +275,7 @@ function applySkillAction(skill) {
   enemy.hp = Math.max(0, enemy.hp - totalDamage);
   gameState.battle.actionUsed = true;
   pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
+  return true;
 }
 
 export function getUsableSkills() {
@@ -302,34 +310,44 @@ function resolveEnemyResponseAndTurnAdvance() {
 }
 
 
-function performPlayerAction(applyAction, shouldCheckFloorClear = true) {
-  applyAction();
-  if (shouldCheckFloorClear && checkFloorClear()) return;
+function performPlayerAction({ validate, apply, checkClear = true }) {
+  if (!validate()) return;
+  const applied = apply();
+  if (applied === false) return;
+  if (checkClear && checkFloorClear()) return;
   resolveEnemyResponseAndTurnAdvance();
 }
 
 export function useBasicAttack() {
-  if (!validateAttackAllowed(gameState, pushLog)) return;
-  performPlayerAction(applyBasicAttack, true);
+  performPlayerAction({
+    validate: () => validateAttackAllowed(gameState, pushLog),
+    apply: applyBasicAttack,
+    checkClear: true,
+  });
 }
 
 export function useDefend() {
-  if (!validateDefendAllowed(gameState, pushLog)) return;
-  performPlayerAction(applyDefend, false);
+  performPlayerAction({
+    validate: () => validateDefendAllowed(gameState, pushLog),
+    apply: applyDefend,
+    checkClear: false,
+  });
 }
 
 export function useSkill(skillId) {
-  if (!validateSkillUseAllowed(gameState, skillId, pushLog)) return;
+  const skill = gameState.entities.player?.skills?.find((ownedSkill) => ownedSkill.id === skillId);
 
-  const skill = gameState.entities.player.skills.find((ownedSkill) => ownedSkill.id === skillId);
-  if (!skill) {
-    pushLog('[ERROR] 보유하지 않은 스킬 사용 시도', true);
-    return;
-  }
-
-  applySkillAction(skill);
-  if (checkFloorClear()) return;
-  resolveEnemyResponseAndTurnAdvance();
+  performPlayerAction({
+    validate: () => validateSkillUseAllowed(gameState, skillId, pushLog),
+    apply: () => {
+      if (!skill) {
+        pushLog('[ERROR] 보유하지 않은 스킬 사용 시도', true);
+        return false;
+      }
+      return applySkillAction(skill);
+    },
+    checkClear: true,
+  });
 }
 
 export function enterImaginationWorld() {
