@@ -85,10 +85,12 @@ export function loadGame() {
       return;
     }
 
+    const loadedBattle = loaded.battle || {};
+
     Object.assign(gameState.session, loaded.session);
-    Object.assign(gameState.battle, loaded.battle);
-    gameState.battle.turnMeta = Object.assign({ mpRecoveredThisTurn: false }, loaded.battle?.turnMeta || {});
-    gameState.battle.defending = Boolean(loaded.battle?.defending);
+    Object.assign(gameState.battle, loadedBattle);
+    gameState.battle.turnMeta = Object.assign({ mpRecoveredThisTurn: false }, loadedBattle.turnMeta || {});
+    gameState.battle.defending = Boolean(loadedBattle.defending);
     Object.assign(gameState.world, loaded.world);
     gameState.entities.player = loaded.entities.player;
     gameState.entities.enemy = loaded.entities.enemy;
@@ -217,6 +219,7 @@ function applySkillAction(skill) {
   const beforeHp = enemy.hp;
   let totalDamage = 0;
 
+  pushLog(`[ACTION] 스킬 사용: ${skill.name}`);
   pushLog(`[SKILL] ${skill.name} 사용`);
 
   switch (skill.id) {
@@ -263,10 +266,17 @@ function applySkillAction(skill) {
 }
 
 export function getUsableSkills() {
+  if (gameState.session.phase !== PHASES.BATTLE) return [];
+  if (gameState.battle.result.playerDefeated) return [];
+  if (gameState.battle.actionUsed) return [];
+
   const player = gameState.entities.player;
-  if (!player || !Array.isArray(player.skills)) return [];
+  if (!player) return [];
+  if (!Array.isArray(player.skills)) return [];
+
   return player.skills.map((skill) => ({ id: skill.id, name: skill.name, description: skill.description || '' }));
 }
+
 
 function resolveEnemyResponseAndTurnAdvance() {
   enemyReactOnce();
@@ -277,22 +287,22 @@ function resolveEnemyResponseAndTurnAdvance() {
   beginTurn();
 }
 
+
+function performPlayerAction(applyAction, shouldCheckFloorClear = true) {
+  applyAction();
+  if (shouldCheckFloorClear && checkFloorClear()) return;
+  resolveEnemyResponseAndTurnAdvance();
+}
+
 export function useBasicAttack() {
   if (!validateAttackAllowed(gameState, pushLog)) return;
-
-  applyBasicAttack();
-  if (checkFloorClear()) return;
-
-  resolveEnemyResponseAndTurnAdvance();
+  performPlayerAction(applyBasicAttack, true);
 }
 
 export function useDefend() {
   if (!validateDefendAllowed(gameState, pushLog)) return;
-
-  applyDefend();
-  resolveEnemyResponseAndTurnAdvance();
+  performPlayerAction(applyDefend, false);
 }
-
 
 export function useSkill(skillId) {
   if (!validateSkillUseAllowed(gameState, skillId, pushLog)) return;
@@ -305,7 +315,6 @@ export function useSkill(skillId) {
 
   applySkillAction(skill);
   if (checkFloorClear()) return;
-
   resolveEnemyResponseAndTurnAdvance();
 }
 
