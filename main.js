@@ -106,8 +106,10 @@ function renderActions(state) {
 
     const usableSkills = getUsableSkills();
     usableSkills.forEach((skill) => {
+      const label = `스킬: ${skill.name} (MP ${skill.mpCost})${skill.canUse ? '' : ' - MP 부족'}`;
+      const title = `${skill.description}${skill.canUse ? '' : ' / MP 부족'}`;
       elements.actionButtons.appendChild(
-        button(`스킬: ${skill.name}`, () => useSkill(skill.id), '', false, skill.description),
+        button(label, () => useSkill(skill.id), skill.canUse ? '' : 'secondary', !skill.canUse, title),
       );
     });
     return;

@@ -36,6 +36,10 @@ export function validateSkillUseAllowed(state, skillId, logFn) {
     && state.entities.player.skills.some((skill) => skill.id === skillId);
   if (!hasSkill) return fail(logFn, '보유하지 않은 스킬 사용 시도');
 
+  const skill = state.entities.player.skills.find((ownedSkill) => ownedSkill.id === skillId);
+  const mpCost = Math.max(0, Number(skill?.mpCost || 0));
+  if (state.entities.player.mp < mpCost) return fail(logFn, 'MP가 부족한데 스킬 사용 시도');
+
   return true;
 }
 

@@ -222,6 +222,11 @@ function applySkillAction(skill) {
   pushLog(`[ACTION] 스킬 사용: ${skill.name}`);
   pushLog(`[SKILL] ${skill.name} 사용`);
 
+  const mpCost = Math.max(0, Number(skill.mpCost || 0));
+  const beforeMp = player.mp;
+  player.mp = Math.max(0, player.mp - mpCost);
+  pushLog(`[SKILL] MP ${beforeMp} → ${player.mp}`);
+
   switch (skill.id) {
     case 'skill_power_strike': {
       const max = player.stats.strength + 4;
@@ -239,7 +244,7 @@ function applySkillAction(skill) {
       pushLog(`[ROLL] 스킬 ${skill.name} 2타 d${max} → ${second}`);
       break;
     }
-    case 'skill_quick_stab': {
+    case 'skill_quick_thrust': {
       const max = player.stats.agility + 2;
       const roll = rollDice(max);
       totalDamage = roll;
@@ -274,7 +279,16 @@ export function getUsableSkills() {
   if (!player) return [];
   if (!Array.isArray(player.skills)) return [];
 
-  return player.skills.map((skill) => ({ id: skill.id, name: skill.name, description: skill.description || '' }));
+  return player.skills.map((skill) => {
+    const mpCost = Math.max(0, Number(skill.mpCost || 0));
+    return {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description || '',
+      mpCost,
+      canUse: player.mp >= mpCost,
+    };
+  });
 }
 
 
