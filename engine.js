@@ -18,6 +18,7 @@ import {
   validateNextFloorAllowed,
   validateRewardNotDuplicated,
   validateRewardStepAllowed,
+  validateSkillUseAllowed,
   validateShopFinishAllowed,
   validateShopPreparationAllowed,
   validateShopPurchaseAllowed,
@@ -86,8 +87,8 @@ export function loadGame() {
 
     Object.assign(gameState.session, loaded.session);
     Object.assign(gameState.battle, loaded.battle);
-    gameState.battle.turnMeta = Object.assign({ mpRecoveredThisTurn: false }, gameState.battle.turnMeta || {});
-    gameState.battle.defending = Boolean(gameState.battle.defending);
+    gameState.battle.turnMeta = Object.assign({ mpRecoveredThisTurn: false }, loaded.battle?.turnMeta || {});
+    gameState.battle.defending = Boolean(loaded.battle?.defending);
     Object.assign(gameState.world, loaded.world);
     gameState.entities.player = loaded.entities.player;
     gameState.entities.enemy = loaded.entities.enemy;
@@ -205,6 +206,68 @@ function applyDefend() {
   pushLog('[ACTION] 방어 태세 돌입');
 }
 
+
+function getFallbackSkillDamageRoll(skillId, player) {
+  return rollDice(player.stats.strength + 2);
+}
+
+function applySkillAction(skill) {
+  const player = gameState.entities.player;
+  const enemy = gameState.entities.enemy;
+  const beforeHp = enemy.hp;
+  let totalDamage = 0;
+
+  pushLog(`[SKILL] ${skill.name} 사용`);
+
+  switch (skill.id) {
+    case 'skill_power_strike': {
+      const max = player.stats.strength + 4;
+      const roll = rollDice(max);
+      totalDamage = roll;
+      pushLog(`[ROLL] 스킬 ${skill.name} d${max} → ${roll}`);
+      break;
+    }
+    case 'skill_double_slash': {
+      const max = player.stats.agility;
+      const first = rollDice(max);
+      const second = rollDice(max);
+      totalDamage = first + second;
+      pushLog(`[ROLL] 스킬 ${skill.name} 1타 d${max} → ${first}`);
+      pushLog(`[ROLL] 스킬 ${skill.name} 2타 d${max} → ${second}`);
+      break;
+    }
+    case 'skill_quick_stab': {
+      const max = player.stats.agility + 2;
+      const roll = rollDice(max);
+      totalDamage = roll;
+      pushLog(`[ROLL] 스킬 ${skill.name} d${max} → ${roll}`);
+      break;
+    }
+    case 'skill_mana_wave': {
+      const max = player.stats.wisdom + 3;
+      const roll = rollDice(max);
+      totalDamage = roll;
+      pushLog(`[ROLL] 스킬 ${skill.name} d${max} → ${roll}`);
+      break;
+    }
+    default: {
+      const roll = getFallbackSkillDamageRoll(skill.id, player);
+      totalDamage = roll;
+      pushLog(`[ROLL] 스킬 ${skill.name} d${player.stats.strength + 2} → ${roll}`);
+    }
+  }
+
+  enemy.hp = Math.max(0, enemy.hp - totalDamage);
+  gameState.battle.actionUsed = true;
+  pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
+}
+
+export function getUsableSkills() {
+  const player = gameState.entities.player;
+  if (!player || !Array.isArray(player.skills)) return [];
+  return player.skills.map((skill) => ({ id: skill.id, name: skill.name, description: skill.description || '' }));
+}
+
 function resolveEnemyResponseAndTurnAdvance() {
   enemyReactOnce();
   if (gameState.battle.result.playerDefeated) {
@@ -227,6 +290,22 @@ export function useDefend() {
   if (!validateDefendAllowed(gameState, pushLog)) return;
 
   applyDefend();
+  resolveEnemyResponseAndTurnAdvance();
+}
+
+
+export function useSkill(skillId) {
+  if (!validateSkillUseAllowed(gameState, skillId, pushLog)) return;
+
+  const skill = gameState.entities.player.skills.find((ownedSkill) => ownedSkill.id === skillId);
+  if (!skill) {
+    pushLog('[ERROR] 보유하지 않은 스킬 사용 시도', true);
+    return;
+  }
+
+  applySkillAction(skill);
+  if (checkFloorClear()) return;
+
   resolveEnemyResponseAndTurnAdvance();
 }
 

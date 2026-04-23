@@ -18,6 +18,8 @@ import {
   startGame,
   useBasicAttack,
   useDefend,
+  useSkill,
+  getUsableSkills,
 } from './engine.js';
 
 const elements = {
@@ -101,6 +103,13 @@ function renderActions(state) {
 
     elements.actionButtons.appendChild(button('기본 공격', useBasicAttack));
     elements.actionButtons.appendChild(button('방어', useDefend, 'secondary'));
+
+    const usableSkills = getUsableSkills();
+    usableSkills.forEach((skill) => {
+      elements.actionButtons.appendChild(
+        button(`스킬: ${skill.name}`, () => useSkill(skill.id), '', false, skill.description),
+      );
+    });
     return;
   }
 
