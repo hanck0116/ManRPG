@@ -3,15 +3,24 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>ManRPG Mobile Prototype v7</title>
+    <title>ManRPG Mobile Prototype v8</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
     <main class="app" aria-live="polite">
       <header class="panel">
         <h1>ManRPG Prototype</h1>
-        <p class="subtitle">모바일 우선 턴제 RPG 규칙 엔진 (7차)</p>
+        <p class="subtitle">모바일 우선 턴제 RPG 규칙 엔진 (8차)</p>
       </header>
+
+      <section class="panel system-panel" id="system-panel">
+        <h2>시스템</h2>
+        <div class="button-grid" id="system-buttons">
+          <button type="button" class="action-btn secondary" id="btn-save">저장</button>
+          <button type="button" class="action-btn secondary" id="btn-load">불러오기</button>
+          <button type="button" class="action-btn secondary" id="btn-clear-save">저장삭제</button>
+        </div>
+      </section>
 
       <section class="panel status-panel" id="status-panel">
         <h2>상태</h2>

@@ -29,8 +29,14 @@ import {
   validateStatDistributionFinishAllowed,
 } from './validator.js';
 
+const SAVE_KEY = 'manrpg_mobile_save_v1';
+
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
+}
+
+function isValidLoadedState(data) {
+  return Boolean(data && data.session && data.battle && data.world && data.entities);
 }
 
 export function pushLog(message, isError = false) {
@@ -52,6 +58,48 @@ function pickUniqueFromPool(pool, count) {
     picks.push(source.splice(index, 1)[0]);
   }
   return picks;
+}
+
+export function saveGame() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
+    pushLog('[SAVE] 게임 저장 완료');
+  } catch {
+    pushLog('[ERROR] 게임 저장 실패', true);
+  }
+}
+
+export function loadGame() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) {
+      pushLog('[ERROR] 저장된 데이터가 없음', true);
+      return;
+    }
+
+    const loaded = JSON.parse(raw);
+    if (!isValidLoadedState(loaded)) {
+      pushLog('[ERROR] 저장 데이터 형식이 올바르지 않음', true);
+      return;
+    }
+
+    Object.assign(gameState.session, loaded.session);
+    Object.assign(gameState.battle, loaded.battle);
+    Object.assign(gameState.world, loaded.world);
+    gameState.entities.player = loaded.entities.player;
+    gameState.entities.enemy = loaded.entities.enemy;
+    gameState.ui.lastMessage = loaded.ui?.lastMessage || '';
+    gameState.logs = Array.isArray(loaded.logs) ? loaded.logs : [];
+
+    pushLog('[SAVE] 저장된 게임 불러오기 완료');
+  } catch {
+    pushLog('[ERROR] 저장 데이터 형식이 올바르지 않음', true);
+  }
+}
+
+export function clearSave() {
+  localStorage.removeItem(SAVE_KEY);
+  pushLog('[SAVE] 저장 데이터 삭제 완료');
 }
 
 export function startGame() {

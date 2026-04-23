@@ -2,11 +2,14 @@ import { IMAGINATION_STEPS, PHASES } from './data.js';
 import {
   allocateStat,
   buyShopItem,
+  clearSave,
   finishShop,
   finishStatDistribution,
   getSerializableState,
   goToNextFloor,
+  loadGame,
   proceedImaginationStep,
+  saveGame,
   selectSkill,
   selectSpellbook,
   setupFloor,
@@ -34,6 +37,9 @@ const elements = {
   enemyHp: document.getElementById('enemy-hp'),
   logList: document.getElementById('log-list'),
   actionButtons: document.getElementById('action-buttons'),
+  saveBtn: document.getElementById('btn-save'),
+  loadBtn: document.getElementById('btn-load'),
+  clearSaveBtn: document.getElementById('btn-clear-save'),
 };
 
 function button(label, onClick, className = '', disabled = false, title = '') {
@@ -52,6 +58,21 @@ function button(label, onClick, className = '', disabled = false, title = '') {
   }
 
   return btn;
+}
+
+function bindSystemButtons() {
+  elements.saveBtn.addEventListener('click', () => {
+    saveGame();
+    render();
+  });
+  elements.loadBtn.addEventListener('click', () => {
+    loadGame();
+    render();
+  });
+  elements.clearSaveBtn.addEventListener('click', () => {
+    clearSave();
+    render();
+  });
 }
 
 function renderActions(state) {
@@ -139,11 +160,10 @@ function renderActions(state) {
 
     choices.forEach((item) => {
       const isPurchased = purchased.includes(item.id);
-      const disabled = isPurchased;
       const label = `${item.name} (${item.price}코인)${isPurchased ? ' - 구매 완료' : ''}`;
       const title = `${item.description} / 가격: ${item.price}`;
       elements.actionButtons.appendChild(
-        button(label, () => buyShopItem(item.id), isPurchased ? 'secondary' : '', disabled, title),
+        button(label, () => buyShopItem(item.id), isPurchased ? 'secondary' : '', isPurchased, title),
       );
     });
 
@@ -203,4 +223,5 @@ function render() {
   renderLogs(state);
 }
 
+bindSystemButtons();
 render();
