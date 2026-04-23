@@ -100,7 +100,11 @@ export function validateStatAllocationAllowed(state, statKey, logFn) {
   if (state.world.imaginationStep !== IMAGINATION_STEPS.STAT_DISTRIBUTION) return fail(logFn, '스탯 분배 단계가 아닌데 분배 시도');
   if (!state.entities.player) return fail(logFn, '플레이어 정보 없이 스탯 분배 시도');
   if (state.entities.player.statPoints <= 0) return fail(logFn, '포인트가 없는데 스탯 분배 시도');
-  if (!['strength', 'agility', 'wisdom'].includes(statKey)) return fail(logFn, '유효하지 않은 스탯 키 분배 시도');
+  if (!['strength', 'agility', 'vitality', 'intelligence', 'wisdom', 'charisma'].includes(statKey)) return fail(logFn, '유효하지 않은 스탯 키 분배 시도');
+
+  const level = Number(state.entities.player.level || 1);
+  const maxStat = level < 80 ? level + 20 : 100;
+  if (state.entities.player.stats[statKey] >= maxStat) return fail(logFn, '스탯 최대치 초과');
   return true;
 }
 

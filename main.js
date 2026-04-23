@@ -133,7 +133,10 @@ function renderActions(state) {
     const canAllocate = state.entities.player && state.entities.player.statPoints > 0;
     elements.actionButtons.appendChild(button('힘 +1', () => allocateStat('strength'), '', !canAllocate));
     elements.actionButtons.appendChild(button('민첩 +1', () => allocateStat('agility'), '', !canAllocate));
+    elements.actionButtons.appendChild(button('활력 +1', () => allocateStat('vitality'), '', !canAllocate));
+    elements.actionButtons.appendChild(button('지능 +1', () => allocateStat('intelligence'), '', !canAllocate));
     elements.actionButtons.appendChild(button('지혜 +1', () => allocateStat('wisdom'), '', !canAllocate));
+    elements.actionButtons.appendChild(button('매력 +1', () => allocateStat('charisma'), '', !canAllocate));
     elements.actionButtons.appendChild(button('분배 완료', finishStatDistribution, 'secondary'));
     return;
   }
@@ -218,7 +221,7 @@ function render() {
     elements.playerLevel.textContent = String(player.level);
     elements.playerHp.textContent = `${player.hp} / ${player.maxHp}`;
     elements.playerMp.textContent = `${player.mp} / ${player.maxMp}`;
-    elements.playerStats.textContent = `${player.stats.strength} / ${player.stats.agility} / ${player.stats.wisdom}`;
+    elements.playerStats.textContent = `${player.stats.strength} / ${player.stats.agility} / ${player.stats.vitality} / ${player.stats.intelligence} / ${player.stats.wisdom} / ${player.stats.charisma}`;
     elements.playerStatPoints.textContent = String(player.statPoints);
     elements.playerCoins.textContent = String(player.coins);
     elements.playerSkills.textContent = player.skills.length ? player.skills.map((s) => s.name).join(', ') : '없음';

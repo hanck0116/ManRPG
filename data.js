@@ -64,8 +64,13 @@ export function createSamplePlayer() {
     stats: {
       strength: 12,
       agility: 8,
+      vitality: 10,
+      intelligence: 7,
       wisdom: 6,
+      charisma: 5,
     },
+    baseMaxHpBonus: 0,
+    baseMaxMpBonus: 0,
     statPoints: 0,
     coins: 0,
     skills: [],
@@ -75,16 +80,20 @@ export function createSamplePlayer() {
 }
 
 export function createEnemyForFloor(floor) {
-  const baseHp = 20 + (floor - 1) * 5;
+  const vitality = 4 + floor;
+  const maxHp = vitality * 10;
 
   return {
     name: floor === 1 ? '고블린' : `층수 수호자 ${floor}`,
-    hp: baseHp,
-    maxHp: baseHp,
+    hp: maxHp,
+    maxHp,
     stats: {
       strength: 6 + floor,
       agility: 4 + floor,
+      vitality,
+      intelligence: 2 + floor,
       wisdom: 2 + floor,
+      charisma: 1 + floor,
     },
     statusEffects: [],
     isAlive: true,

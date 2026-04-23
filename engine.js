@@ -62,6 +62,45 @@ function pickUniqueFromPool(pool, count) {
   return picks;
 }
 
+function ensurePlayerStatShape(player) {
+  if (!player.stats) player.stats = {};
+  const fallback = {
+    strength: 10,
+    agility: 8,
+    vitality: 10,
+    intelligence: 7,
+    wisdom: 6,
+    charisma: 5,
+  };
+  Object.keys(fallback).forEach((key) => {
+    if (typeof player.stats[key] !== 'number') player.stats[key] = fallback[key];
+  });
+}
+
+function recalcDerivedStats(player) {
+  ensurePlayerStatShape(player);
+  player.level = Math.max(1, Number(player.level || 1));
+  player.baseMaxHpBonus = Number(player.baseMaxHpBonus || 0);
+  player.baseMaxMpBonus = Number(player.baseMaxMpBonus || 0);
+
+  const derivedMaxHp = player.stats.vitality * 10 + player.baseMaxHpBonus;
+  const derivedMaxMp = player.level * 5 + player.stats.intelligence * 10 + player.baseMaxMpBonus;
+  const derivedMpRecovery = player.level + player.stats.wisdom * 2;
+
+  player.maxHp = Math.max(1, Math.floor(derivedMaxHp));
+  player.maxMp = Math.max(1, Math.floor(derivedMaxMp));
+  player.mpRecovery = Math.max(0, Math.floor(derivedMpRecovery));
+
+  const currentHp = Number.isFinite(Number(player.hp)) ? Number(player.hp) : player.maxHp;
+  const currentMp = Number.isFinite(Number(player.mp)) ? Number(player.mp) : player.maxMp;
+  player.hp = Math.min(player.maxHp, Math.max(0, currentHp));
+  player.mp = Math.min(player.maxMp, Math.max(0, currentMp));
+}
+
+function getBasicAttackDamage(player) {
+  return Math.floor((player.stats.strength + player.stats.vitality) / 5) + 2;
+}
+
 export function saveGame() {
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(gameState));
@@ -95,6 +134,11 @@ export function loadGame() {
     Object.assign(gameState.world, loaded.world);
     gameState.entities.player = loaded.entities.player;
     gameState.entities.enemy = loaded.entities.enemy;
+
+    if (gameState.entities.player) {
+      ensurePlayerStatShape(gameState.entities.player);
+      recalcDerivedStats(gameState.entities.player);
+    }
     gameState.ui.lastMessage = loaded.ui?.lastMessage || '';
     gameState.logs = Array.isArray(loaded.logs) ? loaded.logs : [];
 
@@ -111,6 +155,9 @@ export function clearSave() {
 
 export function startGame() {
   gameState.entities.player = createSamplePlayer();
+  recalcDerivedStats(gameState.entities.player);
+  gameState.entities.player.hp = gameState.entities.player.maxHp;
+  gameState.entities.player.mp = gameState.entities.player.maxMp;
   gameState.entities.enemy = null;
   gameState.session.started = true;
   gameState.session.phase = PHASES.INIT;
@@ -194,14 +241,14 @@ function applyBasicAttack() {
   pushLog('[ACTION] 기본 공격');
   const player = gameState.entities.player;
   const enemy = gameState.entities.enemy;
-  const roll = rollDice(player.stats.strength);
+  const damage = getBasicAttackDamage(player);
   const beforeHp = enemy.hp;
 
-  enemy.hp = Math.max(0, enemy.hp - roll);
+  enemy.hp = Math.max(0, enemy.hp - damage);
   gameState.battle.actionUsed = true;
   gameState.battle.lastActionType = 'basic_attack';
 
-  pushLog(`[ROLL] 기본 공격 d${player.stats.strength} → ${roll}`);
+  pushLog(`[ROLL] 기본 공격 고정 피해 → ${damage}`);
   pushLog(`[RESULT] ${enemy.name} HP ${beforeHp} → ${enemy.hp}`);
   return true;
 }
@@ -370,6 +417,7 @@ function processImaginationReward() {
     player.level += REWARDS.LEVEL;
     player.statPoints += REWARDS.STAT_POINTS;
     player.coins += REWARDS.COINS;
+    recalcDerivedStats(player);
     gameState.world.rewardsGranted = true;
     pushLog('[IMAGINATION] 보상 지급: 레벨 +5 / 스탯포인트 +15 / 코인 +1');
     pushLog('[IMAGINATION] 보상 지급 완료');
@@ -384,7 +432,8 @@ export function allocateStat(statKey) {
   const player = gameState.entities.player;
   player.stats[statKey] += 1;
   player.statPoints -= 1;
-  const label = { strength: '힘', agility: '민첩', wisdom: '지혜' }[statKey];
+  recalcDerivedStats(player);
+  const label = { strength: '힘', agility: '민첩', vitality: '활력', intelligence: '지능', wisdom: '지혜', charisma: '매력' }[statKey];
   pushLog(`[STAT] ${label} +1 (남은 포인트: ${player.statPoints})`);
 }
 
@@ -399,6 +448,17 @@ export function finishStatDistribution() {
 
 export function prepareSkillChoices() {
   if (!validateSkillCreatePreparationAllowed(gameState, pushLog)) return;
+
+  const player = gameState.entities.player;
+  if (player.level < 10) {
+    gameState.world.skillChoices = [];
+    gameState.world.imaginationStep = IMAGINATION_STEPS.SPELLBOOK_ACTION;
+    pushLog('[IMAGINATION] 레벨 부족으로 스킬 생성 불가');
+    pushLog('[IMAGINATION] 마법서 단계로 이동');
+    prepareSpellbookChoices();
+    return;
+  }
+
   if (gameState.world.skillChoices.length > 0) return;
   gameState.world.skillChoices = pickUniqueFromPool(SKILL_POOL, 3);
   pushLog('[IMAGINATION] 스킬 생성 단계 진입');
@@ -467,11 +527,13 @@ function applyShopItemEffect(item) {
       return `MP +${player.mp - before}`;
     }
     case 'max_hp_up':
-      player.maxHp += item.effectValue;
+      player.baseMaxHpBonus = Number(player.baseMaxHpBonus || 0) + item.effectValue;
+      recalcDerivedStats(player);
       player.hp = Math.min(player.maxHp, player.hp + item.effectValue);
       return `최대 HP +${item.effectValue}`;
     case 'max_mp_up':
-      player.maxMp += item.effectValue;
+      player.baseMaxMpBonus = Number(player.baseMaxMpBonus || 0) + item.effectValue;
+      recalcDerivedStats(player);
       player.mp = Math.min(player.maxMp, player.mp + item.effectValue);
       return `최대 MP +${item.effectValue}`;
     case 'strength_up':
